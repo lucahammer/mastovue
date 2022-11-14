@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>MastoVue | Mastodon Timeline Viewer</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma-extensions@3.0.0/bulma-checkradio/dist/css/bulma-checkradio.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router@3.5.3/dist/vue-router.min.js"></script>
+    <script
+      defer
+      src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="/script.js" defer></script>
+  </head>
+  <body>
+    <div id="vue">
+      <section class="section">
+        <div class="container">
+          <h1 id="title" class="title is-1">
+            <a class="title" href="https://mastovue.glitch.me/">MastoVue</a>
+          </h1>
+          <h2 class="subtitle">
+            Peek into any public Mastodon Timeline or search for Hashtags.
+          </h2>
+
+          <article v-show="showInfo" class="message is-info">
+            <div class="message-header">
+              <p>Info</p>
+              <button
+                @click="showInfo=false"
+                class="delete"
+                aria-label="delete"
+              ></button>
+            </div>
+            <div class="message-body">
+              Instance Timelines can be viewed independent from Hashtags. Use
+              <a href="#" @click="local=true"><strong>Local</strong></a> to 
+              view only public posts by users from that Instance.<br />
+              The Hashtag Search needs an instance to work. Use a well connected
+              instance like
+              <a href="#" @click="inputUrl='mastodon.social'"
+                ><strong>mastodon.social</strong></a
+              >
+              and choose
+              <a href="#" @click="local=false"><strong>Federated</strong></a> to
+              get Toots with that Hashtag from other instances as well.
+            </div>
+          </article>
+
+          <div class="field has-addons">
+            <div class="control is-large has-icons-left">
+              <input
+                class="input is-large show-timeline"
+                autofocus
+                :placeholder="placeholder"
+                v-model="inputUrl"
+                @keydown.enter="showTimeline()"
+              />
+              <span class="icon is-large is-left">
+                <i class="fab fa-mastodon"></i>
+              </span>
+            </div>
+            <div class="control">
+              <button
+                @click="showTimeline()"
+                :class="{'is-loading':loading}"
+                class="button is-large is-primary"
+              >
+                View Timeline
+              </button>
+            </div>
+          </div>
+
+          <div class="field has-addons">
+            <div class="control is-large has-icons-left">
+              <input
+                class="input is-large show-timeline"
+                :placeholder="placeholderTag"
+                v-model="inputTag"
+                @keydown.enter="showTag()"
+              />
+              <span class="icon is-large is-left">
+                <i class="fas fa-hashtag"></i>
+              </span>
+            </div>
+            <div class="control">
+              <button
+                @click="showTag()"
+                :class="{'is-loading':loading}"
+                class="button is-large is-primary"
+              >
+                View Hashtag
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <input
+              v-model="local"
+              class="is-checkradio"
+              id="localFalse"
+              type="radio"
+              name="local"
+              value="false"
+            />
+            <label for="localFalse">Federated</label>
+            <input
+              v-model="local"
+              class="is-checkradio"
+              id="localTrue"
+              type="radio"
+              name="local"
+              value="true"
+            />
+            <label for="localTrue">Local</label>
+          </div>
+
+          <router-view></router-view>
+
+          <div id="toots" v-if="toots">
+            <article v-for="toot in toots" class="box media">
+              <div class="media-left">
+                <a :href="toot.account.url">
+                  <figure class="image is-64x64">
+                    <img :src="toot.account.avatar_static" alt="Avatar" />
+                  </figure>
+                </a>
+              </div>
+
+              <div class="media-content">
+                <a :href="toot.account.url">
+                  <div class="content">
+                    <p>
+                      <strong>{{toot.account.display_name}}</strong>
+                      <small>@{{toot.account.acct}}</small>
+                    </p>
+                  </div>
+                </a>
+
+                <p v-html="toot.content"></p>
+                <a v-for="media in toot.media_attachments" :href="toot.url"
+                  ><figure class="attachement">
+                    <img :src="media.preview_url" /></figure
+                ></a>
+                <small
+                  ><a :href="toot.uri"
+                    >{{formatDate(toot.created_at)}}</a
+                  ></small
+                >
+              </div>
+            </article>
+          </div>
+
+          <br />
+
+          <div v-if="loaded & toots.length==0">
+            <p>No Toots found.</p>
+            <p v-if="local">
+              You only searched this instance. For more results search for
+              federated results.
+              <a href="#" @click="local=false; showTag();">Try now?</a>
+            </p>
+          </div>
+
+          <button
+            v-if="nextUrl"
+            @click="loadToots()"
+            :class="{'is-loading':loading}"
+            class="button is-primary is-outlined is-large is-fullwidth"
+          >
+            Load more…
+          </button>
+
+          <table v-if="toots.length>0" class="table is-fullwidth">
+            <tbody>
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Toots</th>
+                </tr>
+              </thead>
+              <tr v-for="(tootcount, user) in users">
+                <td><a :href="'https://'+instance+'/@'+user">@{{user}}</a></td>
+                <td>{{tootcount}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <footer class="footer">
+        <div class="content has-text-centered">
+          <p>
+            Made by
+            <strong
+              ><a href="https://vis.social/@Luca">@Luca@vis.social</a></strong
+            >. VueJS version of
+            <a href="https://mastoview.glitch.me/">Mastoview</a>. Licensed under
+            <a href="http://opensource.org/licenses/mit-license.php">MIT</a>.
+            Inspired by
+            <a href="http://www.unmung.com/mastoview">unmung Mastoview</a>.
+          </p>
+        </div>
+      </footer>
+    </div>
+    <div
+      class="glitchButton"
+      style="position: fixed; top: 20px; right: 20px"
+    ></div>
+    <script src="https://button.glitch.me/button.js"></script>
+  </body>
+</html>

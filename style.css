@@ -1,0 +1,26 @@
+.toot_frame {
+  width: 500px;
+  height: 300px;
+}
+
+.content figure {
+  margin: 0px;
+  text-align: left;
+}
+
+.attachement img {
+  max-width: 100%;
+}
+
+p {
+  /* https://css-tricks.com/snippets/css/prevent-long-urls-from-breaking-out-of-container/ */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  -ms-word-break: break-all;
+  word-break: break-all;
+  word-break: break-word;
+  -ms-hyphens: auto;
+  -moz-hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
